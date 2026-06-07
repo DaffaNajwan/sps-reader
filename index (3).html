@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SheetView — Online Spreadsheet Viewer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0e0f11;
+  --surface: #16181d;
+  --surface2: #1e2028;
+  --surface3: #252830;
+  --border: #2a2d38;
+  --border2: #363a48;
+  --accent: #4f9eff;
+  --accent2: #7b5fff;
+  --text: #e8eaf0;
+  --text2: #9ca3af;
+  --text3: #5a6175;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --cell-border: #252830;
+  --header-bg: #1a1d24;
+  --row-even: #13151a;
+  --row-hover: rgba(79,158,255,0.07);
+  --row-first-child-even: #111318;
+  /* Mobile-first sizing */
+  --header-h: 48px;
+  --urlbar-h: auto;
+  --cell-pad-x: 10px;
+  --cell-pad-y: 8px;
+  --font-cell: 12px;
+  --touch-min: 40px;
+}
+
+/* ── TEMA TERANG ── */
+:root.light {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface2: #eef1f6;
+  --surface3: #e4e8f0;
+  --border: #d1d9e6;
+  --border2: #b8c4d8;
+  --accent: #2563eb;
+  --accent2: #7c3aed;
+  --text: #1a202c;
+  --text2: #4a5568;
+  --text3: #94a3b8;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --cell-border: #e2e8f0;
+  --header-bg: #eef1f6;
+  --row-even: #f8fafc;
+  --row-hover: rgba(37,99,235,0.06);
+  --row-first-child-even: #f0f4fa;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: 'Sora', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* ── LAYOUT SHELL ── */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+.hdr {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  height: var(--header-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  z-index: 50;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.3px;
+}
+.logo-icon {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.logo span { color: var(--accent); }
+.theme-btn {
+  width: 36px; height: 36px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  flex-shrink: 0;
+  transition: border-color 0.2s, background 0.2s;
+  -webkit-appearance: none;
+}
+.theme-btn:active { border-color: var(--accent); }
+.badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: rgba(79,158,255,0.12);
+  color: var(--accent);
+  border: 1px solid rgba(79,158,255,0.25);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ── URL BAR ── */
+.urlbar {
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.urlbar-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.url-wrap {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+.url-input {
+  width: 100%;
+  height: 40px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  padding: 0 36px 0 12px;
+  outline: none;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
+.url-input:focus { border-color: var(--accent); }
+.url-input::placeholder { color: var(--text3); font-size: 11px; }
+.url-clear {
+  position: absolute;
+  right: 8px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none;
+  color: var(--text3); cursor: pointer;
+  font-size: 14px; padding: 4px;
+  display: none;
+  line-height: 1;
+}
+.url-clear.on { display: block; }
+.btn-load {
+  height: 40px;
+  padding: 0 16px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Sora', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  -webkit-appearance: none;
+}
+.btn-load:active { opacity: 0.8; }
+.btn-load:disabled { opacity: 0.45; }
+.btn-file {
+  height: 40px;
+  padding: 0 14px;
+  background: var(--surface2);
+  color: var(--text2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  font-family: 'Sora', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: 5px;
+  -webkit-appearance: none;
+}
+.btn-file:active { border-color: var(--accent); }
+#fileInput { display: none; }
+
+.fmts {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.fmts-lbl { font-size: 10px; color: var(--text3); flex-shrink: 0; }
+.fmt-chip {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--surface2);
+  color: var(--text3);
+  border: 1px solid var(--border);
+  font-family: 'DM Mono', monospace;
+}
+
+/* ── CONTENT ── */
+#content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── LANDING ── */
+#landingState {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 24px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+.land-hero { text-align: center; max-width: 420px; }
+.land-icon {
+  width: 64px; height: 64px;
+  background: rgba(79,158,255,0.1);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  margin: 0 auto 16px;
+  border: 1px solid rgba(79,158,255,0.18);
+}
+.land-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  margin-bottom: 10px;
+  line-height: 1.25;
+  color: var(--text);
+}
+.land-sub { font-size: 13px; color: var(--text3); line-height: 1.6; }
+.land-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  max-width: 480px;
+}
+.feat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+.feat-ic { font-size: 18px; margin-bottom: 6px; }
+.feat-t { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+.feat-d { font-size: 10px; color: var(--text3); line-height: 1.4; }
+
+/* ── LOADING ── */
+#loadingState {
+  flex: 1;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.load-txt { color: var(--text2); font-size: 13px; }
+
+/* ── ERROR ── */
+#errorState {
+  flex: 1;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 24px 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  text-align: center;
+}
+.err-ic { font-size: 36px; }
+.err-t { font-size: 16px; font-weight: 600; color: var(--danger); }
+.err-m { font-size: 12px; color: var(--text3); max-width: 360px; line-height: 1.6; }
+.err-tips {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  text-align: left;
+  max-width: 420px;
+  width: 100%;
+}
+.err-tips h4 { font-size: 11px; color: var(--text2); margin-bottom: 8px; }
+.err-tips li { font-size: 11px; color: var(--text3); margin-bottom: 5px; line-height: 1.5; padding-left: 4px; }
+.err-tips li::marker { color: var(--accent); }
+
+/* ── VIEWER ── */
+#viewerState {
+  flex: 1;
+  min-height: 0;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* TOOLBAR */
+.toolbar {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.file-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.file-name {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+.file-meta { font-size: 10px; color: var(--text3); }
+.tool-actions { display: flex; gap: 5px; flex-shrink: 0; }
+.act-btn {
+  height: 32px;
+  padding: 0 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text2);
+  font-family: 'Sora', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 3px;
+  white-space: nowrap;
+  -webkit-appearance: none;
+}
+.act-btn:active { border-color: var(--accent); color: var(--accent); }
+
+/* PROXY NOTICE */
+.proxy-note {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  background: rgba(245,158,11,0.08);
+  border-bottom: 1px solid rgba(245,158,11,0.2);
+  font-size: 10px;
+  color: var(--warning);
+  display: none;
+  align-items: center;
+  gap: 5px;
+}
+
+/* SEARCH BAR */
+.searchbar {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.search-input {
+  flex: 1;
+  height: 34px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  padding: 0 10px;
+  outline: none;
+  min-width: 0;
+  -webkit-appearance: none;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-input::placeholder { color: var(--text3); }
+.search-info { font-size: 11px; color: var(--text3); white-space: nowrap; flex-shrink: 0; }
+.col-info { font-size: 11px; color: var(--text3); white-space: nowrap; flex-shrink: 0; }
+
+/* SHEET TABS */
+.sheet-tabs {
+  flex-shrink: 0;
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+}
+.sheet-tabs::-webkit-scrollbar { display: none; }
+.stab {
+  padding: 9px 14px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text3);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--touch-min);
+  display: flex; align-items: center;
+}
+.stab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* TABLE AREA — key mobile fix */
+.table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Make it easy to scroll both axes on mobile */
+  touch-action: pan-x pan-y;
+}
+
+table {
+  border-collapse: collapse;
+  /* DO NOT set width:100% — let it expand naturally for horizontal scroll */
+  font-size: var(--font-cell);
+  font-family: 'DM Mono', monospace;
+  table-layout: auto;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--header-bg);
+  border-right: 1px solid var(--cell-border);
+  border-bottom: 1px solid var(--border2);
+  padding: var(--cell-pad-y) var(--cell-pad-x);
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  user-select: none;
+}
+thead th:first-child {
+  left: 0;
+  z-index: 20;
+  background: var(--surface);
+  text-align: center;
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  color: var(--text3);
+  cursor: default;
+  font-size: 10px;
+}
+thead th:not(:first-child):hover { color: var(--accent); }
+
+/* Sort indicator */
+thead th.sort-asc::after  { content: ' ↑'; color: var(--accent); font-size: 10px; }
+thead th.sort-desc::after { content: ' ↓'; color: var(--accent); font-size: 10px; }
+
+tbody tr { border-bottom: 1px solid var(--cell-border); }
+tbody tr:nth-child(even) { background: var(--row-even); }
+tbody tr:hover { background: var(--row-hover); }
+
+tbody td {
+  border-right: 1px solid var(--cell-border);
+  padding: var(--cell-pad-y) var(--cell-pad-x);
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  vertical-align: top;
+  max-width: 320px;
+  min-width: 80px;
+  line-height: 1.5;
+}
+tbody td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: var(--surface2);
+  color: var(--text3);
+  text-align: center;
+  font-size: 10px;
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  border-right: 1px solid var(--border2);
+}
+tbody tr:nth-child(even) td:first-child { background: var(--row-first-child-even); }
+tbody tr:hover td:first-child { background: var(--row-hover); }
+.hl { background: rgba(79,158,255,0.18) !important; color: var(--accent) !important; }
+
+/* ── PAGINATION ── */
+.pagination {
+  flex-shrink: 0;
+  padding: 7px 10px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 44px;
+}
+.pg-info { font-size: 10px; color: var(--text3); flex: 1; min-width: 0; }
+.pg-ctrl { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.pg-btn {
+  height: 32px;
+  min-width: 48px;
+  padding: 0 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text2);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  gap: 2px;
+  -webkit-appearance: none;
+}
+.pg-btn:active:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.pg-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+.pg-num { font-size: 11px; color: var(--text2); padding: 0 4px; white-space: nowrap; }
+.rows-sel {
+  height: 32px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text2);
+  font-size: 12px;
+  padding: 0 6px;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 20px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a6175'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+}
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 10px 18px;
+  font-size: 12px;
+  color: var(--text);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  z-index: 999;
+  opacity: 0;
+  transition: all 0.3s;
+  white-space: nowrap;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.toast.ok { border-color: rgba(16,185,129,0.4); }
+.toast.err { border-color: rgba(239,68,68,0.4); }
+
+/* ── MOBILE OVERRIDES ── */
+@media (max-width: 480px) {
+  :root {
+    --header-h: 44px;
+    --cell-pad-x: 8px;
+    --cell-pad-y: 7px;
+    --font-cell: 11px;
+  }
+  .badge { display: none; }
+  .fmts { display: none; }
+  .col-info { display: none; }
+  .act-btn span { display: none; } /* hide label, keep icon */
+  .file-meta { display: block; } /* keep meta on mobile */
+}
+
+/* Scrollbar desktop */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── COLUMN RESIZE ── */
+thead th {
+  position: relative;
+}
+.col-resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 5;
+  background: transparent;
+  transition: background 0.15s;
+  touch-action: none;
+}
+.col-resizer:hover,
+.col-resizer.dragging {
+  background: var(--accent);
+  opacity: 0.5;
+}
+
+/* ── LANDSCAPE / SAFE AREA FIX ── */
+#app {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Portrait: URL bar bisa collapse */
+@media (max-height: 480px) {
+  .urlbar .fmts { display: none; }
+  .hdr { height: 40px; }
+  :root { --header-h: 40px; }
+  .urlbar { padding: 6px 10px; gap: 5px; }
+}
+
+/* Landscape phone — kompak tapi tetap terlihat */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --header-h: 38px;
+    --cell-pad-x: 7px;
+    --cell-pad-y: 5px;
+    --font-cell: 11px;
+  }
+  .urlbar { padding: 5px 10px; gap: 4px; }
+  .urlbar .fmts { display: none; }
+  .url-input { height: 34px; }
+  .btn-load, .btn-file { height: 34px; }
+  .hdr { height: 38px; }
+}
+
+/* ── WRAP MODE TOGGLE ── */
+.wrap-off tbody td {
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+.wrap-on tbody td {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <header class="hdr">
+    <div class="logo">
+      <div class="logo-icon">📊</div>
+      Sheet<span>View</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Ganti tema">🌙</button>
+      <span class="badge">No install needed</span>
+    </div>
+  </header>
+
+  <!-- URL BAR -->
+  <div class="urlbar">
+    <div class="urlbar-row">
+      <div class="url-wrap">
+        <input class="url-input" id="urlInput" type="url" inputmode="url"
+          placeholder="Paste link file spreadsheet (xlsx, csv, dll)..."
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button class="url-clear" id="urlClear" onclick="clearURL()">✕</button>
+      </div>
+      <button class="btn-load" id="loadBtn" onclick="loadURL()">⚡ Buka</button>
+      <label class="btn-file" for="fileInput">📁 <span>File</span></label>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm,.xltx,.csv,.ods,.tsv,.html,.htm" onchange="loadFile(event)">
+    </div>
+    <div class="fmts">
+      <span class="fmts-lbl">Format:</span>
+      <span class="fmt-chip">.xlsx</span><span class="fmt-chip">.xls</span>
+      <span class="fmt-chip">.xlsm</span><span class="fmt-chip">.csv</span>
+      <span class="fmt-chip">.ods</span><span class="fmt-chip">.tsv</span>
+      <span class="fmt-chip">.html</span>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- LANDING -->
+    <div id="landingState">
+      <div class="land-hero">
+        <div class="land-icon">📊</div>
+        <h1 class="land-title">Buka Spreadsheet Apapun<br>Langsung di Browser</h1>
+        <p class="land-sub">Tidak perlu install Excel atau aplikasi lain. Paste link atau upload file — langsung terbaca, termasuk di HP.</p>
+      </div>
+      <div class="land-grid">
+        <div class="feat"><div class="feat-ic">🔗</div><div class="feat-t">Dari Link URL</div><div class="feat-d">Google Drive, Dropbox, OneDrive, server sendiri</div></div>
+        <div class="feat"><div class="feat-ic">📁</div><div class="feat-t">File Lokal</div><div class="feat-d">Upload dari HP/PC, tidak dikirim ke server</div></div>
+        <div class="feat"><div class="feat-ic">📑</div><div class="feat-t">Multi-Sheet</div><div class="feat-d">Navigasi antar sheet dengan mudah</div></div>
+        <div class="feat"><div class="feat-ic">🔍</div><div class="feat-t">Cari Data</div><div class="feat-d">Cari real-time di seluruh kolom</div></div>
+        <div class="feat"><div class="feat-ic">📱</div><div class="feat-t">Mobile Friendly</div><div class="feat-d">Tabel bisa digeser kiri-kanan di HP</div></div>
+        <div class="feat"><div class="feat-ic">⬇</div><div class="feat-t">Export CSV</div><div class="feat-d">Unduh hasil filter sebagai CSV</div></div>
+      </div>
+    </div>
+
+    <!-- LOADING -->
+    <div id="loadingState">
+      <div class="spinner"></div>
+      <div class="load-txt" id="loadTxt">Mengambil file...</div>
+    </div>
+
+    <!-- ERROR -->
+    <div id="errorState">
+      <div class="err-ic">⚠️</div>
+      <div class="err-t" id="errTitle">Gagal memuat</div>
+      <div class="err-m" id="errMsg"></div>
+      <ul class="err-tips">
+        <h4>💡 Tips:</h4>
+        <li>Pastikan link bisa diakses publik (tidak butuh login)</li>
+        <li>Google Sheets: <b>File → Share → Publish to web</b> → copy link CSV</li>
+        <li>Google Drive: gunakan link "Anyone with link can view"</li>
+        <li>OneDrive: klik kanan → Share → Copy link (Anyone)</li>
+        <li>Atau pakai <b>File Lokal</b> untuk upload langsung dari HP</li>
+      </ul>
+    </div>
+
+    <!-- VIEWER -->
+    <div id="viewerState">
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="file-info">
+          <div class="file-name" id="fileName">—</div>
+          <div class="file-meta" id="fileMeta"></div>
+        </div>
+        <div class="tool-actions">
+          <button class="act-btn" id="wrapBtn" onclick="toggleWrap()" title="Wrap/Nowrap teks">↕ <span>Wrap</span></button>
+          <button class="act-btn" onclick="doExportCSV()">⬇ <span>CSV</span></button>
+          <button class="act-btn" onclick="doCopy()">📋 <span>Salin</span></button>
+          <button class="act-btn" onclick="doPrint()">🖨 <span>Print</span></button>
+        </div>
+      </div>
+
+      <!-- Proxy notice -->
+      <div class="proxy-note" id="proxyNote">
+        ⚡ Diambil via proxy CORS — performa mungkin lebih lambat dari URL langsung.
+      </div>
+
+      <!-- Search -->
+      <div class="searchbar">
+        <input class="search-input" id="searchInput" type="search"
+          placeholder="🔍  Cari data..." oninput="doSearch(this.value)">
+        <span class="search-info" id="searchInfo"></span>
+        <span class="col-info" id="colInfo"></span>
+      </div>
+
+      <!-- Sheet tabs -->
+      <div class="sheet-tabs" id="sheetTabs"></div>
+
+      <!-- Table — full horizontal scroll on mobile -->
+      <div class="table-wrap" id="tableWrap">
+        <table id="dataTable">
+          <thead id="tHead"></thead>
+          <tbody id="tBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination">
+        <div class="pg-info" id="pgInfo"></div>
+        <div class="pg-ctrl">
+          <select class="rows-sel" id="rowsSel" onchange="changeRPP()">
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="250">250</option>
+            <option value="500">500</option>
+          </select>
+          <button class="pg-btn" id="prevBtn" onclick="goPage(-1)">‹</button>
+          <span class="pg-num" id="pgNum">1/1</span>
+          <button class="pg-btn" id="nextBtn" onclick="goPage(1)">›</button>
+        </div>
+      </div>
+
+    </div><!-- /viewerState -->
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ── THEME TOGGLE ──
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  $('themeBtn').textContent = isLight ? '☀️' : '🌙';
+  try { localStorage.setItem('sv_theme', isLight ? 'light' : 'dark'); } catch {}
+}
+
+// ── WRAP TOGGLE ──
+let wrapMode = true; // default wrap ON
+function toggleWrap() {
+  wrapMode = !wrapMode;
+  const tbl = $('dataTable');
+  const btn = $('wrapBtn');
+  if (wrapMode) {
+    tbl.classList.remove('wrap-off');
+    tbl.classList.add('wrap-on');
+    btn.style.color = '';
+    btn.style.borderColor = '';
+  } else {
+    tbl.classList.add('wrap-off');
+    tbl.classList.remove('wrap-on');
+    btn.style.color = 'var(--accent)';
+    btn.style.borderColor = 'var(--accent)';
+  }
+}
+
+// Restore saved theme
+(function() {
+  try {
+    const saved = localStorage.getItem('sv_theme');
+    if (saved === 'light') {
+      document.documentElement.classList.add('light');
+      document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('themeBtn');
+        if (btn) btn.textContent = '☀️';
+      });
+    }
+  } catch {}
+})();
+
+// ── STATE ──
+let wb = null, sheets = {}, curSheet = '', allRows = [], filteredRows = [], headers = [];
+let curPage = 1, rpp = 100, searchQ = '', sortCol = -1, sortDir = 1, srcName = '';
+
+// ── CORS PROXIES ──
+const PROXIES = [
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://cors-anywhere.herokuapp.com/${u}`,
+];
+
+// ── UI HELPERS ──
+const $ = id => document.getElementById(id);
+
+function setState(s) {
+  $('landingState').style.display = 'none';
+  $('loadingState').style.display = 'none';
+  $('errorState').style.display = 'none';
+  $('viewerState').style.display = 'none';
+  if (s === 'landing') { $('landingState').style.display = 'flex'; $('landingState').style.flexDirection = 'column'; }
+  if (s === 'loading') { $('loadingState').style.display = 'flex'; $('loadingState').style.flexDirection = 'column'; }
+  if (s === 'error')   { $('errorState').style.display = 'flex'; $('errorState').style.flexDirection = 'column'; }
+  if (s === 'viewer')  { $('viewerState').style.display = 'flex'; $('viewerState').style.flexDirection = 'column'; }
+}
+
+function setLoad(t) { setState('loading'); $('loadTxt').textContent = t; }
+
+function showErr(title, msg) {
+  setState('error');
+  $('errTitle').textContent = title;
+  $('errMsg').textContent = msg;
+}
+
+function toast(msg, type = '') {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = 'toast', 3000);
+}
+
+// ── URL INPUT ──
+const urlInput = $('urlInput');
+const urlClear = $('urlClear');
+
+urlInput.addEventListener('input', () => {
+  urlClear.classList.toggle('on', urlInput.value.length > 0);
+});
+urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadURL(); });
+
+function clearURL() {
+  urlInput.value = '';
+  urlClear.classList.remove('on');
+  urlInput.focus();
+}
+
+// ── FILE TYPE UTILS ──
+function getExt(url) {
+  try {
+    const p = new URL(url).pathname;
+    return p.split('.').pop().toLowerCase().split('?')[0];
+  } catch {
+    return url.split('.').pop().toLowerCase().split('?')[0];
+  }
+}
+
+function fileIcon(ext) {
+  return { xlsx:'📊', xls:'📊', xlsm:'📊', xltx:'📊', ods:'📊', csv:'📄', tsv:'📄', html:'🌐', htm:'🌐' }[ext] || '📄';
+}
+
+function transformURL(url) {
+  // Google Sheets
+  if (url.includes('docs.google.com/spreadsheets')) {
+    if (url.includes('/pub?')) return url.includes('output=') ? url : url + '&output=csv';
+    const m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    if (m) return `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=xlsx`;
+  }
+  // Google Drive
+  if (url.includes('drive.google.com/file/d/')) {
+    const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (m) return `https://drive.google.com/uc?export=download&id=${m[1]}`;
+  }
+  if (url.includes('drive.google.com/open?id=')) {
+    const m = url.match(/id=([a-zA-Z0-9_-]+)/);
+    if (m) return `https://drive.google.com/uc?export=download&id=${m[1]}`;
+  }
+  return url;
+}
+
+// ── LOAD FROM URL ──
+async function loadURL() {
+  let url = urlInput.value.trim();
+  if (!url) { toast('Masukkan URL file spreadsheet', 'err'); return; }
+  if (!url.startsWith('http')) url = 'https://' + url;
+
+  const btn = $('loadBtn');
+  btn.disabled = true; btn.textContent = '⏳';
+
+  try {
+    url = transformURL(url);
+    srcName = url.split('/').pop().split('?')[0] || 'spreadsheet';
+    setLoad('Mengambil file...');
+
+    let buf = null, proxy = false;
+
+    try {
+      const r = await fetch(url, { mode: 'cors' });
+      if (r.ok) buf = await r.arrayBuffer();
+      else throw new Error(r.status);
+    } catch {
+      for (let i = 0; i < PROXIES.length; i++) {
+        try {
+          setLoad(`Mencoba proxy ${i+1}/${PROXIES.length}...`);
+          const r = await fetch(PROXIES[i](url));
+          if (r.ok) { buf = await r.arrayBuffer(); proxy = true; break; }
+        } catch {}
+      }
+    }
+
+    if (!buf || buf.byteLength === 0) throw new Error('Tidak dapat mengambil file. Pastikan link dapat diakses publik.');
+
+    $('proxyNote').style.display = proxy ? 'flex' : 'none';
+    setLoad('Membaca file...');
+    await parseBuffer(buf, url);
+
+  } catch (e) {
+    showErr('Gagal memuat dari URL', e.message || 'Terjadi kesalahan.');
+  }
+
+  btn.disabled = false; btn.textContent = '⚡ Buka';
+}
+
+// ── LOAD FROM FILE ──
+function loadFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  srcName = file.name;
+  setLoad('Membaca file...');
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    try { await parseBuffer(ev.target.result, file.name, file.name); }
+    catch (err) { showErr('Gagal membaca file', err.message); }
+  };
+  reader.onerror = () => showErr('Gagal membaca file', 'FileReader error');
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+// ── PARSE ──
+async function parseBuffer(buffer, urlOrName, displayName) {
+  setLoad('Memproses data...');
+  const ext = getExt(urlOrName);
+  displayName = displayName || srcName;
+
+  let workbook;
+  try {
+    if (ext === 'csv' || ext === 'tsv') {
+      const text = new TextDecoder('utf-8').decode(new Uint8Array(buffer));
+      workbook = XLSX.read(text, { type: 'string', raw: false, cellDates: true, FS: ext === 'tsv' ? '\t' : undefined });
+    } else {
+      workbook = XLSX.read(new Uint8Array(buffer), { type: 'array', raw: false, cellDates: true });
+    }
+  } catch (e) { throw new Error('Format tidak dikenali: ' + e.message); }
+
+  wb = workbook;
+  sheets = {};
+  for (const name of wb.SheetNames) {
+    sheets[name] = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '', raw: false });
+  }
+
+  if (!wb.SheetNames.length) throw new Error('File tidak memiliki sheet.');
+
+  curSheet = wb.SheetNames[0];
+  renderTabs();
+  loadSheet(curSheet);
+
+  const totalR = Object.values(sheets).reduce((a, s) => a + Math.max(0, s.length - 1), 0);
+  $('fileName').textContent = (fileIcon(ext) + ' ') + (displayName || srcName);
+  $('fileMeta').textContent = `${wb.SheetNames.length} sheet · ${totalR.toLocaleString()} baris total`;
+
+  setState('viewer');
+  // Apply wrap mode class
+  const tbl = $('dataTable');
+  tbl.classList.toggle('wrap-on', wrapMode);
+  tbl.classList.toggle('wrap-off', !wrapMode);
+  toast('✅ Berhasil dimuat', 'ok');
+}
+
+// ── SHEET TABS ──
+function formatSheetName(name) {
+  // Ubah DDMMYYYY atau DDMMYY menjadi DD-MM-YYYY / DD-MM-YY
+  // Misal: 08062026 → 08-06-2026, 080626 → 08-06-26
+  const m8 = name.match(/^(\d{2})(\d{2})(\d{4})$/);
+  if (m8) return `${m8[1]}-${m8[2]}-${m8[3]}`;
+  const m6 = name.match(/^(\d{2})(\d{2})(\d{2})$/);
+  if (m6) return `${m6[1]}-${m6[2]}-${m6[3]}`;
+  return name;
+}
+
+function renderTabs() {
+  const tabs = $('sheetTabs');
+  tabs.innerHTML = '';
+  for (const name of wb.SheetNames) {
+    const d = document.createElement('div');
+    d.className = 'stab' + (name === curSheet ? ' active' : '');
+    d.textContent = formatSheetName(name);
+    d.title = name; // tooltip nama asli
+    d.onclick = () => { curSheet = name; loadSheet(name); renderTabs(); };
+    tabs.appendChild(d);
+  }
+}
+
+// ── LOAD SHEET ──
+function loadSheet(name) {
+  const data = sheets[name] || [];
+  if (!data.length) { headers = []; allRows = []; }
+  else {
+    headers = data[0].map((h, i) => h !== '' ? String(h) : `Col ${i+1}`);
+    allRows = data.slice(1).filter(r => r.some(c => c !== '' && c != null));
+  }
+  curPage = 1; searchQ = ''; sortCol = -1; sortDir = 1;
+  colWidths = {}; // reset column widths per sheet
+  $('searchInput').value = '';
+  $('searchInfo').textContent = '';
+  filteredRows = [...allRows];
+  renderHeaders();
+  renderTable();
+}
+
+// ── RENDER HEADERS ──
+let colWidths = {}; // { colIndex: widthPx }
+
+function renderHeaders() {
+  const thead = $('tHead');
+  thead.innerHTML = '';
+  const tr = document.createElement('tr');
+
+  const th0 = document.createElement('th');
+  th0.textContent = '#';
+  tr.appendChild(th0);
+
+  headers.forEach((h, i) => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    th.title = h;
+    if (sortCol === i) th.className = sortDir === 1 ? 'sort-asc' : 'sort-desc';
+    if (colWidths[i]) th.style.width = colWidths[i] + 'px';
+
+    // Sort on click (only if not dragging)
+    th.addEventListener('click', (e) => {
+      if (!th._dragged) doSort(i);
+    });
+
+    // Column resize handle
+    const resizer = document.createElement('div');
+    resizer.className = 'col-resizer';
+    resizer.addEventListener('mousedown', (e) => startResize(e, th, i));
+    resizer.addEventListener('touchstart', (e) => startResizeTouch(e, th, i), { passive: false });
+    th.appendChild(resizer);
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  $('colInfo').textContent = `${headers.length} kol · ${allRows.length.toLocaleString()} baris`;
+}
+
+// ── COLUMN RESIZE LOGIC ──
+function startResize(e, th, ci) {
+  e.stopPropagation();
+  e.preventDefault();
+  const startX = e.clientX;
+  const startW = th.offsetWidth;
+  th._dragged = false;
+  const onMove = (e2) => {
+    const diff = e2.clientX - startX;
+    if (Math.abs(diff) > 3) th._dragged = true;
+    const newW = Math.max(50, startW + diff);
+    th.style.width = newW + 'px';
+    colWidths[ci] = newW;
+    // Apply to all td in that column
+    const tds = $('tBody').querySelectorAll(`tr td:nth-child(${ci + 2})`);
+    tds.forEach(td => td.style.maxWidth = newW + 'px');
+    e2.currentTarget?.classList?.add('dragging');
+  };
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    setTimeout(() => { th._dragged = false; }, 50);
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function startResizeTouch(e, th, ci) {
+  e.stopPropagation();
+  e.preventDefault();
+  const touch = e.touches[0];
+  const startX = touch.clientX;
+  const startW = th.offsetWidth;
+  th._dragged = false;
+  const onMove = (e2) => {
+    const t = e2.touches[0];
+    const diff = t.clientX - startX;
+    if (Math.abs(diff) > 3) th._dragged = true;
+    const newW = Math.max(50, startW + diff);
+    th.style.width = newW + 'px';
+    colWidths[ci] = newW;
+    const tds = $('tBody').querySelectorAll(`tr td:nth-child(${ci + 2})`);
+    tds.forEach(td => td.style.maxWidth = newW + 'px');
+  };
+  const onUp = () => {
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onUp);
+    setTimeout(() => { th._dragged = false; }, 50);
+  };
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('touchend', onUp);
+}
+
+// ── SORT ──
+function doSort(ci) {
+  if (sortCol === ci) sortDir *= -1;
+  else { sortCol = ci; sortDir = 1; }
+  filteredRows.sort((a, b) => {
+    const av = a[ci] ?? '', bv = b[ci] ?? '';
+    const an = parseFloat(av), bn = parseFloat(bv);
+    if (!isNaN(an) && !isNaN(bn)) return (an - bn) * sortDir;
+    return String(av).localeCompare(String(bv)) * sortDir;
+  });
+  curPage = 1;
+  renderHeaders();
+  renderTable();
+}
+
+// ── SEARCH ──
+function doSearch(q) {
+  searchQ = q.trim().toLowerCase();
+  filteredRows = searchQ
+    ? allRows.filter(r => r.some(c => String(c).toLowerCase().includes(searchQ)))
+    : [...allRows];
+  $('searchInfo').textContent = searchQ ? `${filteredRows.length.toLocaleString()} hasil` : '';
+  curPage = 1;
+  renderTable();
+}
+
+// ── RENDER TABLE ──
+function renderTable() {
+  const tbody = $('tBody');
+  tbody.innerHTML = '';
+
+  const start = (curPage - 1) * rpp;
+  const pageRows = filteredRows.slice(start, start + rpp);
+  const nc = headers.length;
+
+  const frag = document.createDocumentFragment();
+  pageRows.forEach((row, ri) => {
+    const tr = document.createElement('tr');
+
+    const tdN = document.createElement('td');
+    tdN.textContent = start + ri + 1;
+    tr.appendChild(tdN);
+
+    for (let ci = 0; ci < nc; ci++) {
+      const td = document.createElement('td');
+      const val = row[ci] != null ? String(row[ci]) : '';
+      td.textContent = val;
+      if (searchQ && val.toLowerCase().includes(searchQ)) td.className = 'hl';
+      tr.appendChild(td);
+    }
+    frag.appendChild(tr);
+  });
+  tbody.appendChild(frag);
+  updatePg();
+}
+
+// ── PAGINATION ──
+function updatePg() {
+  const total = filteredRows.length;
+  const pages = Math.max(1, Math.ceil(total / rpp));
+  const s = (curPage - 1) * rpp + 1, e = Math.min(curPage * rpp, total);
+  $('pgInfo').textContent = total === 0 ? '0 baris' : `${s}–${e} dari ${total.toLocaleString()}`;
+  $('pgNum').textContent = `${curPage}/${pages}`;
+  $('prevBtn').disabled = curPage <= 1;
+  $('nextBtn').disabled = curPage >= pages;
+}
+
+function goPage(d) {
+  const pages = Math.max(1, Math.ceil(filteredRows.length / rpp));
+  curPage = Math.max(1, Math.min(pages, curPage + d));
+  renderTable();
+  $('tableWrap').scrollTop = 0;
+}
+
+function changeRPP() {
+  rpp = parseInt($('rowsSel').value);
+  curPage = 1;
+  renderTable();
+}
+
+// ── ACTIONS ──
+function doExportCSV() {
+  if (!filteredRows.length) { toast('Tidak ada data', 'err'); return; }
+  const rows = [headers, ...filteredRows.map(r => headers.map((_, i) => r[i] ?? ''))];
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = (srcName.replace(/\.[^.]+$/, '') || 'data') + '_export.csv';
+  a.click();
+  toast('✅ CSV diunduh', 'ok');
+}
+
+function doCopy() {
+  const rows = [headers, ...filteredRows.slice(0, 500).map(r => headers.map((_, i) => r[i] ?? ''))];
+  navigator.clipboard.writeText(rows.map(r => r.join('\t')).join('\n'))
+    .then(() => toast('✅ Disalin ke clipboard (max 500 baris)', 'ok'))
+    .catch(() => toast('❌ Gagal menyalin', 'err'));
+}
+
+function doPrint() {
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><title>${srcName}</title><style>
+    body{font-family:monospace;font-size:10px;} table{border-collapse:collapse;width:100%;}
+    th,td{border:1px solid #ccc;padding:3px 6px;} th{background:#eee;}
+    tr:nth-child(even){background:#f9f9f9;}
+  </style></head><body><h3>${srcName}</h3>${$('dataTable').outerHTML}</body></html>`);
+  w.document.close(); w.print();
+}
+
+// ── AUTO-LOAD FROM ?url= ──
+(function() {
+  const p = new URLSearchParams(location.search).get('url');
+  if (p) { urlInput.value = p; urlClear.classList.add('on'); setTimeout(loadURL, 400); }
+})();
+</script>
+</body>
+</html>
