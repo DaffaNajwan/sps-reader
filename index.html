@@ -394,6 +394,58 @@ html, body {
   -webkit-appearance: none;
 }
 .act-btn:active { border-color: var(--accent); color: var(--accent); }
+.act-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(79,158,255,0.1);
+}
+:root.light .act-btn.active {
+  background: rgba(37,99,235,0.08);
+}
+
+/* Dropdown lebar kolom */
+.col-width-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  z-index: 200;
+  min-width: 160px;
+  overflow: hidden;
+  display: none;
+}
+.col-width-panel.open { display: block; }
+.cwp-title {
+  font-size: 10px;
+  color: var(--text3);
+  padding: 8px 12px 4px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.cwp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text2);
+  gap: 8px;
+  transition: background 0.1s;
+}
+.cwp-row:hover { background: var(--surface2); color: var(--text); }
+.cwp-row:active { background: var(--surface3); }
+.cwp-row .cwp-preview {
+  font-size: 9px;
+  color: var(--text3);
+  font-family: 'DM Mono', monospace;
+}
+.cwp-divider { height: 1px; background: var(--border); margin: 2px 0; }
+.toolbar-rel { position: relative; }
 
 /* PROXY NOTICE */
 .proxy-note {
@@ -469,8 +521,12 @@ html, body {
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  /* Make it easy to scroll both axes on mobile */
   touch-action: pan-x pan-y;
+}
+/* Saat resize aktif, nonaktifkan scroll tabel agar tidak konflik */
+.table-wrap.resizing-active {
+  touch-action: none;
+  overflow: hidden;
 }
 
 table {
@@ -634,8 +690,17 @@ tbody tr:hover td:first-child { background: var(--row-hover); }
   .badge { display: none; }
   .fmts { display: none; }
   .col-info { display: none; }
-  .act-btn span { display: none; } /* hide label, keep icon */
-  .file-meta { display: block; } /* keep meta on mobile */
+  /* Mobile: tampilkan label tetap, tapi ukuran lebih kecil */
+  .act-btn {
+    padding: 0 7px;
+    font-size: 10px;
+    gap: 2px;
+    height: 30px;
+  }
+  .act-btn .btn-icon { font-size: 13px; }
+  .file-meta { display: block; }
+  /* Sembunyikan tombol Print di mobile — jarang dipakai */
+  #printBtn { display: none; }
 }
 
 /* Scrollbar desktop */
@@ -649,20 +714,34 @@ thead th {
 }
 .col-resizer {
   position: absolute;
-  right: 0;
+  right: -6px;
   top: 0;
   bottom: 0;
-  width: 6px;
+  width: 20px;
   cursor: col-resize;
-  z-index: 5;
+  z-index: 30;
   background: transparent;
-  transition: background 0.15s;
   touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.col-resizer:hover,
-.col-resizer.dragging {
+.col-resizer::after {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 60%;
+  border-radius: 3px;
+  background: var(--border2);
+  transition: background 0.15s, height 0.15s;
+}
+.col-resizer:hover::after,
+.col-resizer.dragging::after {
   background: var(--accent);
-  opacity: 0.5;
+  height: 80%;
+}
+thead th.resizing {
+  background: rgba(79,158,255,0.08) !important;
 }
 
 /* ── LANDSCAPE / SAFE AREA FIX ── */
@@ -797,10 +876,45 @@ thead th {
           <div class="file-meta" id="fileMeta"></div>
         </div>
         <div class="tool-actions">
-          <button class="act-btn" id="wrapBtn" onclick="toggleWrap()" title="Wrap/Nowrap teks">↕ <span>Wrap</span></button>
-          <button class="act-btn" onclick="doExportCSV()">⬇ <span>CSV</span></button>
-          <button class="act-btn" onclick="doCopy()">📋 <span>Salin</span></button>
-          <button class="act-btn" onclick="doPrint()">🖨 <span>Print</span></button>
+          <!-- Wrap toggle -->
+          <button class="act-btn" id="wrapBtn" onclick="toggleWrap()" title="Teks wrap/nowrap">
+            <span class="btn-icon">↕</span> Wrap
+          </button>
+          <!-- Lebar kolom dropdown -->
+          <div class="toolbar-rel">
+            <button class="act-btn" id="colWidthBtn" onclick="toggleColPanel()" title="Atur lebar kolom">
+              <span class="btn-icon">⇔</span> Lebar
+            </button>
+            <div class="col-width-panel" id="colWidthPanel">
+              <div class="cwp-title">Lebar Kolom</div>
+              <div class="cwp-row" onclick="applyColWidth(80)">
+                Sempit <span class="cwp-preview">80px</span>
+              </div>
+              <div class="cwp-row" onclick="applyColWidth(140)">
+                Normal <span class="cwp-preview">140px</span>
+              </div>
+              <div class="cwp-row" onclick="applyColWidth(220)">
+                Lebar <span class="cwp-preview">220px</span>
+              </div>
+              <div class="cwp-row" onclick="applyColWidth(320)">
+                Sangat Lebar <span class="cwp-preview">320px</span>
+              </div>
+              <div class="cwp-divider"></div>
+              <div class="cwp-row" onclick="applyColWidth(0)">
+                Reset Semua <span class="cwp-preview">auto</span>
+              </div>
+            </div>
+          </div>
+          <!-- Export -->
+          <button class="act-btn" onclick="doExportCSV()" title="Unduh CSV">
+            <span class="btn-icon">⬇</span> CSV
+          </button>
+          <button class="act-btn" onclick="doCopy()" title="Salin ke clipboard">
+            <span class="btn-icon">📋</span> Salin
+          </button>
+          <button class="act-btn" id="printBtn" onclick="doPrint()" title="Print">
+            <span class="btn-icon">🖨</span> Print
+          </button>
         </div>
       </div>
 
@@ -869,14 +983,66 @@ function toggleWrap() {
   if (wrapMode) {
     tbl.classList.remove('wrap-off');
     tbl.classList.add('wrap-on');
-    btn.style.color = '';
-    btn.style.borderColor = '';
+    btn.classList.remove('active');
   } else {
     tbl.classList.add('wrap-off');
     tbl.classList.remove('wrap-on');
-    btn.style.color = 'var(--accent)';
-    btn.style.borderColor = 'var(--accent)';
+    btn.classList.add('active');
   }
+}
+
+// ── COLUMN WIDTH PANEL ──
+let colPanelOpen = false;
+
+function toggleColPanel() {
+  colPanelOpen = !colPanelOpen;
+  $('colWidthPanel').classList.toggle('open', colPanelOpen);
+  $('colWidthBtn').classList.toggle('active', colPanelOpen);
+}
+
+// Tutup panel saat klik di luar
+document.addEventListener('click', (e) => {
+  if (colPanelOpen && !e.target.closest('.toolbar-rel')) {
+    colPanelOpen = false;
+    $('colWidthPanel').classList.remove('open');
+    $('colWidthBtn').classList.remove('active');
+  }
+});
+
+function applyColWidth(px) {
+  // px = 0 berarti reset
+  const ths = $('tHead').querySelectorAll('th:not(:first-child)');
+  const tBody = $('tBody');
+
+  ths.forEach((th, i) => {
+    if (px === 0) {
+      th.style.width = '';
+      th.style.minWidth = '';
+      colWidths[i] = undefined;
+    } else {
+      th.style.width = px + 'px';
+      th.style.minWidth = px + 'px';
+      colWidths[i] = px;
+    }
+  });
+
+  // Apply ke semua td
+  const rows = tBody.querySelectorAll('tr');
+  rows.forEach(tr => {
+    const tds = tr.querySelectorAll('td:not(:first-child)');
+    tds.forEach((td, i) => {
+      if (px === 0) {
+        td.style.maxWidth = '';
+        td.style.minWidth = '';
+      } else {
+        td.style.maxWidth = px + 'px';
+        td.style.minWidth = Math.min(px, 60) + 'px';
+      }
+    });
+  });
+
+  toggleColPanel(); // tutup panel
+  toast(px === 0 ? '↺ Lebar kolom direset' : `⇔ Kolom diatur ke ${px}px`, 'ok');
 }
 
 // Restore saved theme
@@ -1146,11 +1312,12 @@ function renderHeaders() {
       if (!th._dragged) doSort(i);
     });
 
-    // Column resize handle
+    // Column resize handle — pakai Pointer Events (mouse + touch)
     const resizer = document.createElement('div');
     resizer.className = 'col-resizer';
-    resizer.addEventListener('mousedown', (e) => startResize(e, th, i));
-    resizer.addEventListener('touchstart', (e) => startResizeTouch(e, th, i), { passive: false });
+    resizer.addEventListener('pointerdown', (e) => startResize(e, th, i));
+    // Cegah klik sort saat resize
+    resizer.addEventListener('click', (e) => e.stopPropagation());
     th.appendChild(resizer);
     tr.appendChild(th);
   });
@@ -1159,56 +1326,58 @@ function renderHeaders() {
 }
 
 // ── COLUMN RESIZE LOGIC ──
+// ── COLUMN RESIZE LOGIC ──
+// Pakai Pointer Events (support mouse + touch + stylus sekaligus)
 function startResize(e, th, ci) {
   e.stopPropagation();
   e.preventDefault();
+
+  const resizer = e.currentTarget;
   const startX = e.clientX;
   const startW = th.offsetWidth;
+
+  resizer.classList.add('dragging');
+  th.classList.add('resizing');
   th._dragged = false;
+
+  // Lock scroll tabel agar tidak konflik dengan drag
+  $('tableWrap').classList.add('resizing-active');
+
+  // Capture pointer agar tetap track walaupun keluar elemen
+  resizer.setPointerCapture(e.pointerId);
+
   const onMove = (e2) => {
     const diff = e2.clientX - startX;
-    if (Math.abs(diff) > 3) th._dragged = true;
+    if (Math.abs(diff) > 2) th._dragged = true;
     const newW = Math.max(50, startW + diff);
     th.style.width = newW + 'px';
+    th.style.minWidth = newW + 'px';
     colWidths[ci] = newW;
-    // Apply to all td in that column
+    // Apply ke semua td di kolom ini
     const tds = $('tBody').querySelectorAll(`tr td:nth-child(${ci + 2})`);
-    tds.forEach(td => td.style.maxWidth = newW + 'px');
-    e2.currentTarget?.classList?.add('dragging');
+    tds.forEach(td => {
+      td.style.maxWidth = newW + 'px';
+      td.style.minWidth = Math.min(newW, 50) + 'px';
+    });
   };
+
   const onUp = () => {
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-    setTimeout(() => { th._dragged = false; }, 50);
+    resizer.classList.remove('dragging');
+    th.classList.remove('resizing');
+    $('tableWrap').classList.remove('resizing-active');
+    resizer.removeEventListener('pointermove', onMove);
+    resizer.removeEventListener('pointerup', onUp);
+    resizer.removeEventListener('pointercancel', onUp);
+    setTimeout(() => { th._dragged = false; }, 80);
   };
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
+
+  resizer.addEventListener('pointermove', onMove);
+  resizer.addEventListener('pointerup', onUp);
+  resizer.addEventListener('pointercancel', onUp);
 }
 
 function startResizeTouch(e, th, ci) {
-  e.stopPropagation();
-  e.preventDefault();
-  const touch = e.touches[0];
-  const startX = touch.clientX;
-  const startW = th.offsetWidth;
-  th._dragged = false;
-  const onMove = (e2) => {
-    const t = e2.touches[0];
-    const diff = t.clientX - startX;
-    if (Math.abs(diff) > 3) th._dragged = true;
-    const newW = Math.max(50, startW + diff);
-    th.style.width = newW + 'px';
-    colWidths[ci] = newW;
-    const tds = $('tBody').querySelectorAll(`tr td:nth-child(${ci + 2})`);
-    tds.forEach(td => td.style.maxWidth = newW + 'px');
-  };
-  const onUp = () => {
-    document.removeEventListener('touchmove', onMove);
-    document.removeEventListener('touchend', onUp);
-    setTimeout(() => { th._dragged = false; }, 50);
-  };
-  document.addEventListener('touchmove', onMove, { passive: false });
-  document.addEventListener('touchend', onUp);
+  // Tidak dipakai lagi — sudah digabung ke startResize via Pointer Events
 }
 
 // ── SORT ──
